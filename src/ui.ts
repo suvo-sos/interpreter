@@ -24,6 +24,7 @@ export function mountUi() {
           <button data-say="tumi ke?">tumi ke?</button>
           <button data-say="jol to amar nai">jol to amar nai</button>
           <button data-say="I want water">I want water</button>
+          <button id="preview-btn">Preview layout</button>
         </div>
       </section>
       <footer>Tap the glasses temple to pause · double-tap to exit.</footer>
@@ -60,6 +61,11 @@ export function addTurn(result: InterpretResult) {
   if (!row.hasChildNodes()) return
   logEl.appendChild(row)
   logEl.scrollTop = logEl.scrollHeight
+}
+
+/** Wires the Preview layout button. Renders a sample turn without calling the agent. */
+export function onPreview(cb: () => void) {
+  document.querySelector<HTMLButtonElement>('#preview-btn')!.addEventListener('click', cb)
 }
 
 /** Wires the debug input + canned chips. Fires for typed or canned utterances. */

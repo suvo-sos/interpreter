@@ -7,7 +7,7 @@ import {
 } from '@evenrealities/even_hub_sdk'
 import { startSttStream } from './asr/stt'
 import { InterpreterAgent } from './agent'
-import { mountUi, setStatus, addTurn, onDebugSend } from './ui'
+import { mountUi, setStatus, addTurn, onDebugSend, onPreview } from './ui'
 
 mountUi()
 
@@ -159,6 +159,17 @@ async function handleUtterance(text: string) {
     }
   }
 }
+
+// Preview layout: renders a sample turn through the same glasses path,
+// without calling the agent — so the look can be judged before the key is set.
+onPreview(() => {
+  const sample = { theySaidEn: 'who are you?', sayThis: 'ami jol khabo', gesture: 'show 2 fingers', lang: 'bn' }
+  lastThey = sample.theySaidEn
+  lastSay = sample.sayThis
+  lastGesture = sample.gesture
+  addTurn(sample)
+  scheduleGlassesRender()
+})
 
 // Debug input (companion UI) runs the same path as a transcribed utterance,
 // so the agent loop can be tested without a mic.
