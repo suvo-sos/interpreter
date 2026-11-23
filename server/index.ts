@@ -43,6 +43,23 @@ const TG_CHAT_ID = process.env.TELEGRAM_CHAT_ID || ''
 
 const agent = API_KEY ? new InterpreterAgent(API_KEY, MODEL) : null
 
+// Shared turns feed — the connector between the glasses and the Telegram bot.
+// Every interpreted turn (from a bot DM or from POST /interpret) is appended
+// here, so the glasses can poll GET /turns and show Telegram messages.
+interface Turn extends InterpretResult {
+  id: number
+  source: 'glasses' | 'telegram'
+  at: number
+}
+const turns: Turn[] = []
+let nextTurnId = 1
+function addTurn(result: InterpretResult, source: Turn['source']): Turn {
+  const turn: Turn = { ...result, id: nextTurnId++, source, at: Date.now() }
+  turns.push(turn)
+  while (turns.length > 50) turns.shift()
+  return turn
+}
+
 function formatTurn(r: InterpretResult): string {
   const lines: string[] = []
   if (r.theySaidEn) lines.push(`They said: ${r.theySaidEn}`)
@@ -89,6 +106,7 @@ async function pollBot() {
         }
         try {
           const result = await agent.interpret(text)
+          addTurn(result, 'telegram')
           await tg('sendMessage', { chat_id: chatId, text: formatTurn(result) })
         } catch (err) {
           await tg('sendMessage', { chat_id: chatId, text: `Agent error: ${(err as Error)?.message ?? err}` })
@@ -105,6 +123,13 @@ const server = createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true, bot: Boolean(TG_TOKEN), key: Boolean(API_KEY) }))
+    return
+  }
+
+  if (req.method === 'GET' && req.url?.startsWith('/turns')) {
+    const since = Number(new URL(req.url, 'http://localhost').searchParams.get('since') || 0)
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ turns: turns.filter(t => t.id > since) }))
     return
   }
 
@@ -125,6 +150,7 @@ const server = createServer((req, res) => {
           return
         }
         const result = await agent.interpret(text)
+        addTurn(result, 'glasses')
         // Mirror the turn into Telegram so the conversation lives there too.
         if (TG_CHAT_ID) {
           tg('sendMessage', { chat_id: TG_CHAT_ID, text: `Glasses:\n${formatTurn(result)}` }).catch(() => {})
@@ -144,6 +170,6 @@ const server = createServer((req, res) => {
 })
 
 server.listen(PORT, () => {
-  console.log(`Interpreter server on http://localhost:${PORT} — key: ${API_KEY ? 'set' : 'MISSING'}, bot: ${TG_TOKEN ? 'on' : 'off (set TELEGRAM_BOT_TOKEN)'}`)
+  console.log(`Hermes server on http://localhost:${PORT} — key: ${API_KEY ? 'set' : 'MISSING'}, bot: ${TG_TOKEN ? 'on' : 'off (set TELEGRAM_BOT_TOKEN)'}`)
   if (TG_TOKEN) void pollBot()
 })

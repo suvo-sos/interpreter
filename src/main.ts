@@ -6,20 +6,26 @@ import {
   OsEventTypeList,
 } from '@evenrealities/even_hub_sdk'
 import { startSttStream } from './asr/stt'
-import { InterpreterAgent } from './agent'
+import { InterpreterAgent, type InterpretResult } from './agent'
 import { mountUi, setStatus, addTurn, onDebugSend, onPreview } from './ui'
 
 mountUi()
 
 const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY as string
 const AGENT_MODEL = (import.meta.env.VITE_AGENT_MODEL as string) || 'recursive/flint-v1.0:free'
+// When set, the glasses talk to the Hermes server instead of OpenRouter —
+// the server holds the key and the shared conversation memory, and the
+// Telegram bot is the other end of the same conversation.
+const AGENT_URL = (import.meta.env.VITE_AGENT_URL as string) || ''
 
-if (!API_KEY) {
+if (!API_KEY && !AGENT_URL) {
   setStatus('error', 'Key not set — add it to .env.local')
   console.warn('VITE_OPENROUTER_API_KEY is not set.')
+} else if (!API_KEY && AGENT_URL) {
+  setStatus('paused', 'Server mode · mic needs a key')
 }
 
-const agent = API_KEY ? new InterpreterAgent(API_KEY, AGENT_MODEL) : null
+const agent = (API_KEY || AGENT_URL) ? new InterpreterAgent(API_KEY, AGENT_MODEL, AGENT_URL || undefined) : null
 
 // The bridge only exists inside the Even Hub WebView / simulator. In a plain
 // browser (dev on a laptop) it never resolves — time out and run in
@@ -282,3 +288,35 @@ if (bridge) {
 }
 
 window.addEventListener('beforeunload', cleanup)
+
+// Connector: poll the Hermes server's shared turns feed, so a Telegram
+// message lands on the glasses. Only 'telegram' turns are rendered — the
+// glasses' own turns are already shown from the interpret response.
+let lastTurnId = 0
+let pollingTurns = false
+if (AGENT_URL) {
+  window.setInterval(async () => {
+    if (pollingTurns) return
+    pollingTurns = true
+    try {
+      const res = await fetch(`${AGENT_URL.replace(/\/$/, '')}/turns?since=${lastTurnId}`)
+      if (!res.ok) return
+      const data = (await res.json()) as { turns?: Array<InterpretResult & { id: number; source: string }> }
+      for (const t of data.turns ?? []) {
+        lastTurnId = Math.max(lastTurnId, t.id)
+        if (t.source !== 'telegram') continue
+        if (t.theySaidEn) lastThey = t.theySaidEn
+        if (t.sayThis) {
+          lastSay = t.sayThis
+          lastGesture = t.gesture ?? ''
+        }
+        addTurn(t)
+        scheduleGlassesRender()
+      }
+    } catch {
+      // Server unreachable — the glasses keep working in direct mode.
+    } finally {
+      pollingTurns = false
+    }
+  }, 3000)
+}

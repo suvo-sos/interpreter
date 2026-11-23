@@ -37,9 +37,31 @@ export class InterpreterAgent {
   constructor(
     private apiKey: string,
     private model: string,
+    // When set, the agent runs on the Hermes server instead of OpenRouter —
+    // the server holds the key and the shared conversation memory.
+    private baseUrl?: string,
   ) {}
 
   async interpret(text: string): Promise<InterpretResult> {
+    if (this.baseUrl) {
+      const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}/interpret`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Hermes server ${res.status}: ${body.slice(0, 200)}`)
+      }
+      const result = (await res.json()) as InterpretResult
+      return {
+        theySaidEn: (result.theySaidEn ?? '').toString().trim(),
+        sayThis: (result.sayThis ?? '').toString().trim(),
+        gesture: (result.gesture ?? '').toString().trim(),
+        lang: (result.lang ?? this.targetLang).toString().trim() || this.targetLang,
+      }
+    }
+    if (!this.apiKey) throw new Error('OpenRouter key not set — add it to .env.local')
     const messages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...this.history.slice(-20),

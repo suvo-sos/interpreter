@@ -71,6 +71,16 @@ Then DM your bot: `tumi ke?` → it replies "They said: who are you?".
 
 The server also exposes `POST /interpret` (same JSON the agent returns) — the glasses app will use it so a turn on the glasses is mirrored into your Telegram chat and shares the agent's memory with the bot.
 
+## Connector: Hermes, the glasses, and Telegram as one system
+
+The agent is called **Hermes** — the messenger. The server is the hub:
+
+- The glasses talk to the server (`VITE_AGENT_URL=http://localhost:3001` in `.env.local`) instead of OpenRouter directly. The server holds the key and the one shared conversation memory.
+- The Telegram bot is the other end of the same conversation: DM it and its turns land on the glasses (the app polls `GET /turns` every 3 seconds), and a turn on the glasses is mirrored into your Telegram chat.
+- Without `VITE_AGENT_URL` the glasses run in direct mode (OpenRouter straight from the app) and the bot is a separate copy of the agent.
+
+To run the whole thing: `npm run dev` + `npm run simulate` + `npm run server`, with the OpenRouter key and `TELEGRAM_BOT_TOKEN` in `.env.local`.
+
 ## Stack
 
 - Even Hub SDK + ASR template (mic → PCM s16le 16 kHz mono)
