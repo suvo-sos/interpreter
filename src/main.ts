@@ -15,7 +15,7 @@ const API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY as string
 const AGENT_MODEL = (import.meta.env.VITE_AGENT_MODEL as string) || 'recursive/flint-v1.0:free'
 
 if (!API_KEY) {
-  setStatus('error', 'VITE_OPENROUTER_API_KEY not set — copy .env.example to .env.local')
+  setStatus('error', 'Key not set — add it to .env.local')
   console.warn('VITE_OPENROUTER_API_KEY is not set.')
 }
 
@@ -104,7 +104,7 @@ async function handleUtterance(text: string) {
   const clean = text.trim()
   if (!clean) return
   if (!agent) {
-    setStatus('error', 'VITE_OPENROUTER_API_KEY not set — copy .env.example to .env.local')
+    setStatus('error', 'Key not set — add it to .env.local')
     return
   }
   if (processing) {

@@ -24,16 +24,23 @@ A **web app built only for G2**. HTML + TypeScript + Vite, running inside the Ev
 
 ```bash
 npm install
-cp .env.example .env.local   # paste your OpenRouter API key
+cp .env.example .env.local
 ```
+
+Then paste your OpenRouter API key into `.env.local`.
 
 One key covers both listening (audio model) and interpreting (agent model). Default agent model is the free `recursive/flint-v1.0:free` — switch `VITE_AGENT_MODEL` to a Claude model for better Bengali.
 
 ## Run
 
+Run these in two terminals. The first serves the app on http://localhost:5173, the second opens the simulator with the 576×288 green canvas.
+
 ```bash
-npm run dev        # terminal 1 — serves the app on http://localhost:5173
-npm run simulate   # terminal 2 — simulator, shows the 576×288 green canvas
+npm run dev
+```
+
+```bash
+npm run simulate
 ```
 
 Or on real glasses: `npx evenhub qr --url http://<your-ip>:5173` and scan the QR in the Even app.
