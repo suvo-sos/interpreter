@@ -42,33 +42,53 @@ let glassesOn = bridge !== null
 let lastThey = ''
 let lastSay = ''
 let lastGesture = ''
-let lastRender = ''
+let micPaused = false
+let lastTheyRender = ''
+let lastSayRender = ''
 let renderTimer: number | null = null
 
-function glassesContent(): string {
-  const lines: string[] = []
-  if (lastThey) lines.push(`THEY: ${lastThey}`)
-  if (lastSay) lines.push(`SAY: ${lastSay}${lastGesture ? ` (${lastGesture})` : ''}`)
-  return lines.length ? lines.join('\n').slice(0, 240) : 'Listening…'
+function theyContent(): string {
+  if (micPaused) return 'Paused'
+  return lastThey ? `THEY: ${lastThey}`.slice(0, 120) : 'Listening…'
+}
+
+function sayContent(): string {
+  if (!lastSay) return 'SAY: …'
+  return `SAY: ${lastSay}${lastGesture ? `\n${lastGesture}` : ''}`.slice(0, 120)
 }
 
 if (bridge) {
-  const transcript = new TextContainerProperty({
+  // Two containers: THEY (small, top) and SAY (the hero line, boxed).
+  const they = new TextContainerProperty({
     xPosition: 0,
     yPosition: 0,
     width: 576,
-    height: 288,
+    height: 90,
     borderWidth: 0,
     borderColor: 5,
     paddingLength: 4,
     containerID: 1,
-    containerName: 'interpreter',
+    containerName: 'they',
     content: 'Listening…',
+    isEventCapture: 0,
+  })
+  const say = new TextContainerProperty({
+    xPosition: 0,
+    yPosition: 100,
+    width: 576,
+    height: 188,
+    borderWidth: 2,
+    borderColor: 5,
+    borderRadius: 8,
+    paddingLength: 8,
+    containerID: 2,
+    containerName: 'say',
+    content: 'SAY: …',
     isEventCapture: 1,
   })
 
   const created = await bridge.createStartUpPageContainer(
-    new CreateStartUpPageContainer({ containerTotalNum: 1, textObject: [transcript] }),
+    new CreateStartUpPageContainer({ containerTotalNum: 2, textObject: [they, say] }),
   )
   if (created !== 0) {
     // No real host behind the bridge (plain browser) — the glasses container
@@ -84,16 +104,20 @@ function scheduleGlassesRender() {
   if (renderTimer !== null) return
   renderTimer = window.setTimeout(async () => {
     renderTimer = null
-    const content = glassesContent()
-    if (content === lastRender) return
-    lastRender = content
-    await bridge.textContainerUpgrade(
-      new TextContainerUpgrade({
-        containerID: 1,
-        containerName: 'interpreter',
-        content,
-      }),
-    )
+    const they = theyContent()
+    if (they !== lastTheyRender) {
+      lastTheyRender = they
+      await bridge.textContainerUpgrade(
+        new TextContainerUpgrade({ containerID: 1, containerName: 'they', content: they }),
+      )
+    }
+    const say = sayContent()
+    if (say !== lastSayRender) {
+      lastSayRender = say
+      await bridge.textContainerUpgrade(
+        new TextContainerUpgrade({ containerID: 2, containerName: 'say', content: say }),
+      )
+    }
   }, 120) // debounce display writes — BLE render queue is slow
 }
 
@@ -176,12 +200,8 @@ function toggleMic() {
   if (!stt || !bridge) return
   micOn = !micOn
   bridge.audioControl(micOn)
-  if (!micOn) {
-    lastThey = ''
-    lastSay = ''
-    lastGesture = ''
-    scheduleGlassesRender()
-  }
+  micPaused = !micOn
+  scheduleGlassesRender()
   setStatus(
     micOn ? 'listening' : 'paused',
     micOn ? 'Microphone live · tap to pause · double-tap to exit' : 'Paused · tap to resume · double-tap to exit',
