@@ -49,6 +49,7 @@ let renderTimer: number | null = null
 
 function theyContent(): string {
   if (micPaused) return 'Paused'
+  if (!micOn && !lastThey) return 'Tap to start'
   return lastThey ? `THEY: ${lastThey}`.slice(0, 120) : 'Listening…'
 }
 
@@ -69,7 +70,7 @@ if (bridge) {
     paddingLength: 4,
     containerID: 1,
     containerName: 'they',
-    content: 'Listening…',
+    content: 'Tap to start',
     isEventCapture: 0,
   })
   const say = new TextContainerProperty({
@@ -197,26 +198,32 @@ if (glassesOn && API_KEY) {
 }
 
 let micOn = false
-if (stt && glassesOn && bridge) {
-  await bridge.audioControl(true)
-  micOn = true
-  setStatus('listening', 'Microphone live · tap to pause · double-tap to exit')
-} else if (!glassesOn) {
+if (glassesOn && bridge) {
+  // Mic starts OFF — the first temple tap activates the agent.
+  // No key: the KEY NOT SET chip from the top stays — the tap still works,
+  // the agent just can't process anything until the key is added.
+  if (API_KEY) setStatus('paused', 'Tap the temple to start listening · double-tap to exit')
+} else if (!glassesOn && API_KEY) {
   setStatus('listening', 'Companion mode — type below to test the agent')
 }
 
 // Tap toggles capture. `audioControl(false)` stops the host pushing PCM, so no
 // further frames reach `sendPcm`; the STT client itself is left open.
+// Deliberately does NOT require the STT object: without a key there is no STT
+// yet, but the tap must still work — the glasses show Listening… and the
+// KEY NOT SET chip stays until the key is added.
 function toggleMic() {
-  if (!stt || !bridge) return
+  if (!bridge) return
   micOn = !micOn
   bridge.audioControl(micOn)
   micPaused = !micOn
   scheduleGlassesRender()
-  setStatus(
-    micOn ? 'listening' : 'paused',
-    micOn ? 'Microphone live · tap to pause · double-tap to exit' : 'Paused · tap to resume · double-tap to exit',
-  )
+  if (API_KEY) {
+    setStatus(
+      micOn ? 'listening' : 'paused',
+      micOn ? 'Microphone live · tap to pause · double-tap to exit' : 'Paused · tap to resume · double-tap to exit',
+    )
+  }
 }
 
 let cleanedUp = false

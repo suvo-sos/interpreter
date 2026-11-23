@@ -27,7 +27,7 @@ export function mountUi() {
           <button id="preview-btn">Preview layout</button>
         </div>
       </section>
-      <footer>Tap the glasses temple to pause · double-tap to exit.</footer>
+      <footer>Tap the temple to start / pause · double-tap to exit.</footer>
     </main>
   `
   statusEl = app.querySelector<HTMLDivElement>('#status')!
