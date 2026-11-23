@@ -55,6 +55,22 @@ Open http://localhost:5173 in a browser. Type in the test box, or tap a canned l
 
 The same two lines appear in the conversation log and on the simulator canvas.
 
+## Telegram bot (the agent's home)
+
+The same agent also lives in Telegram. DM it any utterance and it replies with the interpretation — same prompt, same memory as the glasses.
+
+1. In Telegram, message @BotFather, send `/newbot`, pick a name. It gives you a token.
+2. Put the token in `.env.local` as `TELEGRAM_BOT_TOKEN`, and your chat id as `TELEGRAM_CHAT_ID` (message @userinfobot to find it).
+3. Run the server in a third terminal:
+
+```bash
+npm run server
+```
+
+Then DM your bot: `tumi ke?` → it replies "They said: who are you?".
+
+The server also exposes `POST /interpret` (same JSON the agent returns) — the glasses app will use it so a turn on the glasses is mirrored into your Telegram chat and shares the agent's memory with the bot.
+
 ## Stack
 
 - Even Hub SDK + ASR template (mic → PCM s16le 16 kHz mono)
